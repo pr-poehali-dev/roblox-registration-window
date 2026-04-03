@@ -24,55 +24,85 @@ interface FriendRequest {
   avatar: string;
 }
 
-// ===== GAME CONSTANTS =====
-const CANVAS_W = 800;
-const CANVAS_H = 420;
-const GRAVITY = 0.55;
-const JUMP_FORCE = -13;
-const MOVE_SPEED = 5;
-const PLAYER_W = 32;
-const PLAYER_H = 36;
+// ===== 3D GAME CONSTANTS =====
+const CW = 900;
+const CH = 500;
 
-interface Platform {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
+// 3D world: islands as boxes with x,z position and size
+// Player moves in X/Z plane, Y is height
+interface Island3D {
+  wx: number; // world x
+  wz: number; // world z
+  wy: number; // world y (height of top surface)
+  sw: number; // size x
+  sd: number; // size z
+  sh: number; // height of box
   checkpoint?: boolean;
   checkpointId?: number;
+  color?: string;
 }
 
-interface GamePlayer {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
+interface Player3D {
+  wx: number; wz: number; wy: number;
+  vx: number; vz: number; vy: number;
   onGround: boolean;
-  checkpointX: number;
-  checkpointY: number;
-  lastCheckpoint: number;
+  cpX: number; cpZ: number; cpY: number;
+  lastCP: number;
   dead: boolean;
-  deathTimer: number;
+  facing: number; // angle in radians
+  carpetOwned: boolean;
+  carpetActive: boolean;
+  infiniteOwned: boolean;
 }
 
-const PLATFORMS: Platform[] = [
-  { x: 0, y: 370, w: 160, h: 20 },
-  { x: 220, y: 320, w: 120, h: 18 },
-  { x: 400, y: 270, w: 100, h: 18, checkpoint: true, checkpointId: 1 },
-  { x: 560, y: 230, w: 90, h: 18 },
-  { x: 710, y: 190, w: 80, h: 18 },
-  { x: 850, y: 150, w: 100, h: 18, checkpoint: true, checkpointId: 2 },
-  { x: 1010, y: 200, w: 80, h: 18 },
-  { x: 1150, y: 160, w: 90, h: 18 },
-  { x: 1300, y: 120, w: 80, h: 18, checkpoint: true, checkpointId: 3 },
-  { x: 1450, y: 80, w: 120, h: 18 },
-  { x: 1640, y: 100, w: 90, h: 18 },
-  { x: 1800, y: 60, w: 200, h: 20 },
+const BASE_ISLANDS: Island3D[] = [
+  { wx: 0,    wz: 0,    wy: 0,  sw: 5, sd: 5, sh: 1.5, color: "#6D28D9" },
+  { wx: 7,    wz: 1,    wy: 0,  sw: 3, sd: 3, sh: 1.5, checkpoint: true, checkpointId: 1, color: "#F59E0B" },
+  { wx: 13,   wz: -1,   wy: 1,  sw: 3, sd: 3, sh: 1.5, color: "#7C3AED" },
+  { wx: 19,   wz: 2,    wy: 2,  sw: 2.5, sd: 2.5, sh: 1.5, color: "#5B21B6" },
+  { wx: 25,   wz: 0,    wy: 1.5, sw: 3, sd: 3, sh: 1.5, checkpoint: true, checkpointId: 2, color: "#F59E0B" },
+  { wx: 31,   wz: -2,   wy: 3,  sw: 2.5, sd: 2.5, sh: 1.5, color: "#6D28D9" },
+  { wx: 37,   wz: 1,    wy: 2.5, sw: 2, sd: 2, sh: 1.5, color: "#4C1D95" },
+  { wx: 43,   wz: -1,   wy: 4,  sw: 3, sd: 3, sh: 1.5, checkpoint: true, checkpointId: 3, color: "#F59E0B" },
+  { wx: 50,   wz: 2,    wy: 3,  sw: 2, sd: 2, sh: 1.5, color: "#7C3AED" },
+  { wx: 57,   wz: 0,    wy: 5,  sw: 4, sd: 4, sh: 2, color: "#0891B2" },
 ];
 
-const INITIAL_PLAYER: GamePlayer = {
-  x: 60, y: 310, vx: 0, vy: 0, onGround: false,
-  checkpointX: 60, checkpointY: 310, lastCheckpoint: 0, dead: false, deathTimer: 0,
+function generateInfiniteIslands(seed: number): Island3D[] {
+  const islands: Island3D[] = [...BASE_ISLANDS];
+  let lx = 57; let lz = 0; let ly = 5;
+  for (let i = 0; i < 200; i++) {
+    const r = Math.sin(seed + i * 17.3) * 0.5 + 0.5;
+    const r2 = Math.sin(seed + i * 7.1) * 0.5 + 0.5;
+    const r3 = Math.sin(seed + i * 3.7) * 0.5 + 0.5;
+    lx += 5 + r * 4;
+    lz += (r2 - 0.5) * 5;
+    ly += (r3 - 0.45) * 1.5;
+    ly = Math.max(-2, Math.min(12, ly));
+    const sw = 1.5 + r * 2;
+    const isCP = i % 12 === 0;
+    const colors = ["#6D28D9","#7C3AED","#5B21B6","#4C1D95","#0891B2","#0E7490"];
+    islands.push({
+      wx: lx, wz: lz, wy: ly,
+      sw, sd: sw, sh: 1.5,
+      checkpoint: isCP, checkpointId: isCP ? Math.floor(i / 12) + 4 : undefined,
+      color: isCP ? "#F59E0B" : colors[Math.floor(r * colors.length)],
+    });
+  }
+  return islands;
+}
+
+const INIT_PLAYER3D: Player3D = {
+  wx: 2, wz: 2, wy: 2,
+  vx: 0, vz: 0, vy: 0,
+  onGround: false,
+  cpX: 2, cpZ: 2, cpY: 2,
+  lastCP: 0,
+  dead: false,
+  facing: 0,
+  carpetOwned: false,
+  carpetActive: false,
+  infiniteOwned: false,
 };
 
 const GAMES = [
@@ -112,42 +142,199 @@ const AVATARS = ["🐸", "🦊", "🐺", "🦁", "🐯", "🦅", "🐲", "🤖",
 
 const MOCK_USER: User = { username: "ГостьИгрок", avatar: "👾", level: 12, bloxcoins: 1250 };
 
-// ===== ISLANDS GAME COMPONENT =====
-function IslandsGame({ onBack }: { onBack: () => void }) {
+// ===== 3D PROJECTION HELPERS =====
+// Isometric-style 3D projection
+const ISO_SCALE = 40; // pixels per world unit
+function project(wx: number, wy: number, wz: number, camX: number, camZ: number, camY: number) {
+  const rx = wx - camX;
+  const rz = wz - camZ;
+  // isometric projection with Y as up
+  const sx = CW / 2 + (rx - rz) * ISO_SCALE;
+  const sy = CH / 2 - wy * ISO_SCALE * 0.9 + (rx + rz) * ISO_SCALE * 0.5 - camY * 20;
+  return { sx, sy };
+}
+
+function hexToRgb(hex: string) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return { r, g, b };
+}
+
+function darken(hex: string, amt: number) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgb(${Math.max(0, r - amt)},${Math.max(0, g - amt)},${Math.max(0, b - amt)})`;
+}
+
+function lighten(hex: string, amt: number) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgb(${Math.min(255, r + amt)},${Math.min(255, g + amt)},${Math.min(255, b + amt)})`;
+}
+
+// Draw isometric box
+function drawBox(ctx: CanvasRenderingContext2D, wx: number, wy: number, wz: number, sw: number, sd: number, sh: number,
+  color: string, camX: number, camZ: number, camY: number) {
+  const topNW = project(wx,       wy + sh, wz,       camX, camZ, camY);
+  const topNE = project(wx + sw,  wy + sh, wz,       camX, camZ, camY);
+  const topSE = project(wx + sw,  wy + sh, wz + sd,  camX, camZ, camY);
+  const topSW = project(wx,       wy + sh, wz + sd,  camX, camZ, camY);
+  const botNW = project(wx,       wy,      wz,       camX, camZ, camY);
+  const botNE = project(wx + sw,  wy,      wz,       camX, camZ, camY);
+  const botSE = project(wx + sw,  wy,      wz + sd,  camX, camZ, camY);
+  const botSW = project(wx,       wy,      wz + sd,  camX, camZ, camY);
+
+  // left face
+  ctx.beginPath();
+  ctx.moveTo(topNW.sx, topNW.sy);
+  ctx.lineTo(topSW.sx, topSW.sy);
+  ctx.lineTo(botSW.sx, botSW.sy);
+  ctx.lineTo(botNW.sx, botNW.sy);
+  ctx.closePath();
+  ctx.fillStyle = darken(color, 60);
+  ctx.fill();
+
+  // right face
+  ctx.beginPath();
+  ctx.moveTo(topNE.sx, topNE.sy);
+  ctx.lineTo(topSE.sx, topSE.sy);
+  ctx.lineTo(botSE.sx, botSE.sy);
+  ctx.lineTo(botNE.sx, botNE.sy);
+  ctx.closePath();
+  ctx.fillStyle = darken(color, 30);
+  ctx.fill();
+
+  // top face
+  ctx.beginPath();
+  ctx.moveTo(topNW.sx, topNW.sy);
+  ctx.lineTo(topNE.sx, topNE.sy);
+  ctx.lineTo(topSE.sx, topSE.sy);
+  ctx.lineTo(topSW.sx, topSW.sy);
+  ctx.closePath();
+  ctx.fillStyle = lighten(color, 20);
+  ctx.fill();
+
+  // top outline
+  ctx.strokeStyle = lighten(color, 60);
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+}
+
+// Draw isometric sphere (player)
+function drawSphere(ctx: CanvasRenderingContext2D, wx: number, wy: number, wz: number,
+  color: string, camX: number, camZ: number, camY: number) {
+  const pos = project(wx, wy, wz, camX, camZ, camY);
+  const r = ISO_SCALE * 0.5;
+
+  // shadow
+  const shadowPos = project(wx, 0, wz, camX, camZ, camY);
+  const shadowA = Math.max(0, 0.4 - (wy - 0) * 0.04);
+  ctx.fillStyle = `rgba(0,0,0,${shadowA})`;
+  ctx.beginPath();
+  ctx.ellipse(shadowPos.sx, shadowPos.sy + r * 0.3, r * 1.2, r * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // body gradient
+  const grad = ctx.createRadialGradient(pos.sx - r * 0.2, pos.sy - r * 0.2, r * 0.1, pos.sx, pos.sy, r);
+  grad.addColorStop(0, lighten(color, 60));
+  grad.addColorStop(0.5, color);
+  grad.addColorStop(1, darken(color, 50));
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(pos.sx, pos.sy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // sheen
+  ctx.fillStyle = "rgba(255,255,255,0.3)";
+  ctx.beginPath();
+  ctx.ellipse(pos.sx - r * 0.25, pos.sy - r * 0.3, r * 0.3, r * 0.2, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // eyes
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(pos.sx - r * 0.3, pos.sy - r * 0.15, r * 0.18, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(pos.sx + r * 0.15, pos.sy - r * 0.15, r * 0.18, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#1E1B4B";
+  ctx.beginPath(); ctx.arc(pos.sx - r * 0.26, pos.sy - r * 0.14, r * 0.1, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(pos.sx + r * 0.19, pos.sy - r * 0.14, r * 0.1, 0, Math.PI * 2); ctx.fill();
+}
+
+// Draw carpet (flying carpet effect)
+function drawCarpet(ctx: CanvasRenderingContext2D, wx: number, wy: number, wz: number,
+  camX: number, camZ: number, camY: number, t: number) {
+  const wave = Math.sin(t * 3) * 0.05;
+  const tl = project(wx - 0.5, wy - 0.1 + wave, wz - 0.4, camX, camZ, camY);
+  const tr = project(wx + 0.5, wy - 0.1 - wave, wz - 0.4, camX, camZ, camY);
+  const br = project(wx + 0.5, wy - 0.1 + wave, wz + 0.4, camX, camZ, camY);
+  const bl = project(wx - 0.5, wy - 0.1 - wave, wz + 0.4, camX, camZ, camY);
+  ctx.beginPath();
+  ctx.moveTo(tl.sx, tl.sy);
+  ctx.lineTo(tr.sx, tr.sy);
+  ctx.lineTo(br.sx, br.sy);
+  ctx.lineTo(bl.sx, bl.sy);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(tl.sx, tl.sy, br.sx, br.sy);
+  grad.addColorStop(0, "#DC2626");
+  grad.addColorStop(0.3, "#F59E0B");
+  grad.addColorStop(0.7, "#DC2626");
+  grad.addColorStop(1, "#7C3AED");
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.strokeStyle = "#FCD34D";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // pattern lines
+  ctx.strokeStyle = "rgba(252,211,77,0.4)";
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  const m1 = project(wx, wy - 0.1, wz - 0.4, camX, camZ, camY);
+  const m2 = project(wx, wy - 0.1, wz + 0.4, camX, camZ, camY);
+  ctx.moveTo(m1.sx, m1.sy); ctx.lineTo(m2.sx, m2.sy);
+  ctx.stroke();
+}
+
+// ===== ISLANDS GAME COMPONENT (3D) =====
+function IslandsGame({ onBack, bloxcoins, onSpend }: { onBack: () => void; bloxcoins: number; onSpend: (amt: number) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const playerRef = useRef<GamePlayer>({ ...INITIAL_PLAYER });
+  const playerRef = useRef<Player3D>({ ...INIT_PLAYER3D });
   const keysRef = useRef<Record<string, boolean>>({});
-  const cameraXRef = useRef(0);
   const frameRef = useRef(0);
-  const activatedCheckpointsRef = useRef<Set<number>>(new Set());
-  const [checkpointMsg, setCheckpointMsg] = useState("");
+  const activatedCPRef = useRef<Set<number>>(new Set());
+  const islandsRef = useRef<Island3D[]>(BASE_ISLANDS);
   const [deaths, setDeaths] = useState(0);
   const [won, setWon] = useState(false);
-  const [animFrame, setAnimFrame] = useState(0);
+  const [cpMsg, setCpMsg] = useState("");
+  const [showShop, setShowShop] = useState(false);
+  const [carpetOwned, setCarpetOwned] = useState(false);
+  const [infiniteOwned, setInfiniteOwned] = useState(false);
+  const [carpetActive, setCarpetActive] = useState(false);
+  const carpetRef = useRef(false);
+  const infiniteRef = useRef(false);
 
-  const resetPlayer = useCallback((toCheckpoint = false) => {
+  const reset = useCallback((toCP = false) => {
     const p = playerRef.current;
-    if (toCheckpoint) {
-      playerRef.current = {
-        ...p,
-        x: p.checkpointX, y: p.checkpointY,
-        vx: 0, vy: 0, dead: false, deathTimer: 0, onGround: false,
-      };
+    if (toCP) {
+      playerRef.current = { ...p, wx: p.cpX, wz: p.cpZ, wy: p.cpY + 0.5, vx: 0, vz: 0, vy: 0, dead: false, onGround: false };
     } else {
-      playerRef.current = { ...INITIAL_PLAYER };
-      activatedCheckpointsRef.current = new Set();
-      cameraXRef.current = 0;
+      playerRef.current = { ...INIT_PLAYER3D };
+      activatedCPRef.current = new Set();
+      if (infiniteRef.current) islandsRef.current = generateInfiniteIslands(Date.now());
+      else islandsRef.current = BASE_ISLANDS;
     }
   }, []);
 
+  // Key B to exit
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       keysRef.current[e.code] = e.type === "keydown";
+      if (e.type === "keydown" && e.code === "KeyB") onBack();
     };
     window.addEventListener("keydown", handleKey);
     window.addEventListener("keyup", handleKey);
     return () => { window.removeEventListener("keydown", handleKey); window.removeEventListener("keyup", handleKey); };
-  }, []);
+  }, [onBack]);
+
+  useEffect(() => { carpetRef.current = carpetActive; }, [carpetActive]);
+  useEffect(() => { infiniteRef.current = infiniteOwned; }, [infiniteOwned]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -157,274 +344,326 @@ function IslandsGame({ onBack }: { onBack: () => void }) {
     const tick = () => {
       const p = playerRef.current;
       const keys = keysRef.current;
+      const t = Date.now() / 1000;
+      const SPEED = 0.1;
+      const GRAVITY3D = 0.015;
+      const JUMP3D = carpetRef.current ? 0 : -0.22;
 
       if (!p.dead && !won) {
-        // movement
-        if (keys["ArrowLeft"] || keys["KeyA"]) p.vx = -MOVE_SPEED;
-        else if (keys["ArrowRight"] || keys["KeyD"]) p.vx = MOVE_SPEED;
-        else p.vx *= 0.8;
+        // movement — WASD in isometric space
+        let moved = false;
+        if (keys["ArrowLeft"] || keys["KeyA"]) { p.wx -= SPEED; p.wz += SPEED; moved = true; }
+        if (keys["ArrowRight"] || keys["KeyD"]) { p.wx += SPEED; p.wz -= SPEED; moved = true; }
+        if (keys["ArrowUp"] || keys["KeyW"]) { p.wx += SPEED; p.wz += SPEED; moved = true; }
+        if (keys["ArrowDown"] || keys["KeyS"]) { p.wx -= SPEED; p.wz -= SPEED; moved = true; }
 
-        if ((keys["ArrowUp"] || keys["KeyW"] || keys["Space"]) && p.onGround) {
-          p.vy = JUMP_FORCE;
+        if (carpetRef.current) {
+          // carpet: fly mode — space to go up, shift to go down
+          if (keys["Space"]) p.wy += SPEED * 0.8;
+          if (keys["ShiftLeft"] || keys["ShiftRight"]) p.wy -= SPEED * 0.8;
+          p.vy = 0;
           p.onGround = false;
-        }
+        } else {
+          // normal gravity + jump
+          if (keys["Space"] && p.onGround) { p.vy = JUMP3D; p.onGround = false; }
+          p.vy += GRAVITY3D;
+          p.wy += p.vy;
+          p.onGround = false;
 
-        p.vy += GRAVITY;
-        p.x += p.vx;
-        p.y += p.vy;
-        p.onGround = false;
+          // collision with islands
+          for (const isl of islandsRef.current) {
+            const topY = isl.wy + isl.sh;
+            if (
+              p.wx >= isl.wx - 0.3 && p.wx <= isl.wx + isl.sw + 0.3 &&
+              p.wz >= isl.wz - 0.3 && p.wz <= isl.wz + isl.sd + 0.3 &&
+              p.wy <= topY + 0.15 && p.wy >= topY - 0.4 && p.vy >= 0
+            ) {
+              p.wy = topY;
+              p.vy = 0;
+              p.onGround = true;
 
-        // platform collision
-        for (const pl of PLATFORMS) {
-          if (p.x + PLAYER_W > pl.x && p.x < pl.x + pl.w && p.y + PLAYER_H > pl.y && p.y + PLAYER_H < pl.y + pl.h + 12 && p.vy >= 0) {
-            p.y = pl.y - PLAYER_H;
-            p.vy = 0;
-            p.onGround = true;
-
-            if (pl.checkpoint && pl.checkpointId !== undefined && !activatedCheckpointsRef.current.has(pl.checkpointId)) {
-              activatedCheckpointsRef.current.add(pl.checkpointId);
-              p.checkpointX = pl.x + pl.w / 2 - PLAYER_W / 2;
-              p.checkpointY = pl.y - PLAYER_H;
-              p.lastCheckpoint = pl.checkpointId;
-              setCheckpointMsg(`🚩 Чекпоинт ${pl.checkpointId} сохранён!`);
-              setTimeout(() => setCheckpointMsg(""), 2000);
+              if (isl.checkpoint && isl.checkpointId !== undefined && !activatedCPRef.current.has(isl.checkpointId)) {
+                activatedCPRef.current.add(isl.checkpointId);
+                p.cpX = p.wx; p.cpZ = p.wz; p.cpY = p.wy;
+                p.lastCP = isl.checkpointId;
+                setCpMsg(`🚩 Чекпоинт ${isl.checkpointId} сохранён!`);
+                setTimeout(() => setCpMsg(""), 2000);
+              }
             }
           }
+
+          // death
+          if (p.wy < -8) {
+            p.dead = true;
+            setDeaths(d => d + 1);
+            setTimeout(() => reset(true), 700);
+          }
         }
 
-        // death by fall
-        if (p.y > CANVAS_H + 100) {
-          p.dead = true;
-          setDeaths(d => d + 1);
-          setTimeout(() => resetPlayer(true), 800);
-        }
-
-        // win
-        const lastPl = PLATFORMS[PLATFORMS.length - 1];
-        if (p.x > lastPl.x + 20 && p.y < lastPl.y + lastPl.h) {
-          setWon(true);
-        }
-
-        // camera
-        const targetCam = p.x - CANVAS_W / 3;
-        cameraXRef.current += (targetCam - cameraXRef.current) * 0.1;
-        if (cameraXRef.current < 0) cameraXRef.current = 0;
+        // win: reach last island
+        const last = islandsRef.current[islandsRef.current.length - 1];
+        if (!infiniteRef.current && p.wx > last.wx && p.wy >= last.wy) setWon(true);
       }
+
+      // ===== CAMERA =====
+      const camX = p.wx - 6;
+      const camZ = p.wz + 4;
+      const camY = p.wy * 0.3;
 
       // ===== DRAW =====
-      const cam = cameraXRef.current;
-      const t = Date.now() / 1000;
-
-      // sky gradient
-      const sky = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
-      sky.addColorStop(0, "#0D0820");
-      sky.addColorStop(0.5, "#1a0a40");
-      sky.addColorStop(1, "#0a1a30");
+      // Sky
+      const sky = ctx.createLinearGradient(0, 0, 0, CH);
+      sky.addColorStop(0, "#060412");
+      sky.addColorStop(0.4, "#120828");
+      sky.addColorStop(1, "#0a1535");
       ctx.fillStyle = sky;
-      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      ctx.fillRect(0, 0, CW, CH);
 
-      // stars
-      ctx.fillStyle = "rgba(255,255,255,0.6)";
-      for (let i = 0; i < 60; i++) {
-        const sx = ((i * 137 + 50) % CANVAS_W);
-        const sy = ((i * 97 + 30) % (CANVAS_H * 0.7));
-        const ss = Math.sin(t * 2 + i) * 0.5 + 0.5;
-        ctx.globalAlpha = 0.3 + ss * 0.5;
-        ctx.fillRect(sx, sy, 1.5, 1.5);
+      // Stars
+      for (let i = 0; i < 80; i++) {
+        const sx = (i * 137.5) % CW;
+        const sy = (i * 97.3) % (CH * 0.65);
+        const blink = Math.sin(t * 1.5 + i * 0.7) * 0.4 + 0.6;
+        ctx.fillStyle = `rgba(255,255,255,${blink * 0.7})`;
+        ctx.fillRect(sx, sy, i % 3 === 0 ? 2 : 1, i % 3 === 0 ? 2 : 1);
       }
-      ctx.globalAlpha = 1;
 
-      // clouds (parallax)
-      ctx.fillStyle = "rgba(255,255,255,0.04)";
-      for (let i = 0; i < 5; i++) {
-        const cx2 = ((i * 320 - cam * 0.2 + 2000) % (CANVAS_W + 200)) - 100;
+      // Nebula clouds
+      for (let i = 0; i < 3; i++) {
+        const nx = (i * 280 + 80) % CW;
+        const ny = 80 + i * 60;
+        const ng = ctx.createRadialGradient(nx, ny, 0, nx, ny, 120);
+        ng.addColorStop(0, i === 0 ? "rgba(124,58,237,0.07)" : i === 1 ? "rgba(6,182,212,0.05)" : "rgba(236,72,153,0.04)");
+        ng.addColorStop(1, "transparent");
+        ctx.fillStyle = ng;
+        ctx.fillRect(nx - 120, ny - 120, 240, 240);
+      }
+
+      // Distant islands (fog effect)
+      for (let i = 0; i < 6; i++) {
+        const fogX = CW * 0.1 + i * CW * 0.15;
+        const fogY = CH * 0.35 + Math.sin(t * 0.3 + i) * 8;
+        ctx.fillStyle = `rgba(109,40,217,${0.03 + i * 0.01})`;
         ctx.beginPath();
-        ctx.ellipse(cx2, 60 + i * 25, 80, 30, 0, 0, Math.PI * 2);
+        ctx.ellipse(fogX, fogY, 60 + i * 20, 15, 0, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // platforms
-      for (const pl of PLATFORMS) {
-        const px = pl.x - cam;
-        if (px > -200 && px < CANVAS_W + 200) {
-          const isCheckpoint = pl.checkpoint;
-          const activated = isCheckpoint && pl.checkpointId !== undefined && activatedCheckpointsRef.current.has(pl.checkpointId);
+      // Sort islands by depth for proper painter's algorithm
+      const sorted = [...islandsRef.current].sort((a, b) => {
+        const da = (a.wx - camX) + (a.wz - camZ);
+        const db = (b.wx - camX) + (b.wz - camZ);
+        return db - da;
+      });
 
-          // glow under platform
-          const glow = ctx.createRadialGradient(px + pl.w / 2, pl.y + 10, 0, px + pl.w / 2, pl.y + 10, pl.w * 0.6);
-          if (isCheckpoint) {
-            glow.addColorStop(0, activated ? "rgba(34,197,94,0.3)" : "rgba(255,200,50,0.3)");
-            glow.addColorStop(1, "transparent");
-          } else {
-            glow.addColorStop(0, "rgba(124,58,237,0.25)");
-            glow.addColorStop(1, "transparent");
-          }
-          ctx.fillStyle = glow;
-          ctx.fillRect(px - pl.w * 0.3, pl.y - 10, pl.w * 1.6, 40);
+      for (const isl of sorted) {
+        const activated = isl.checkpoint && isl.checkpointId !== undefined && activatedCPRef.current.has(isl.checkpointId);
+        const c = activated ? "#22C55E" : (isl.color || "#6D28D9");
+        drawBox(ctx, isl.wx, isl.wy, isl.wz, isl.sw, isl.sd, isl.sh, c, camX, camZ, camY);
 
-          // platform body
-          const grad = ctx.createLinearGradient(px, pl.y, px, pl.y + pl.h);
-          if (isCheckpoint) {
-            grad.addColorStop(0, activated ? "#22C55E" : "#F59E0B");
-            grad.addColorStop(1, activated ? "#15803D" : "#B45309");
-          } else {
-            grad.addColorStop(0, "#6D28D9");
-            grad.addColorStop(1, "#3B0764");
-          }
-          ctx.fillStyle = grad;
-          roundRect(ctx, px, pl.y, pl.w, pl.h, 5);
-          ctx.fill();
-
-          // top edge highlight
-          ctx.fillStyle = isCheckpoint ? (activated ? "rgba(134,239,172,0.5)" : "rgba(252,211,77,0.5)") : "rgba(167,139,250,0.5)";
-          ctx.fillRect(px + 4, pl.y, pl.w - 8, 2);
-
-          // flag on checkpoint
-          if (isCheckpoint) {
-            const flagX = px + pl.w / 2;
-            const flagY = pl.y - 28;
-            ctx.strokeStyle = activated ? "#22C55E" : "#F59E0B";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(flagX, pl.y);
-            ctx.lineTo(flagX, flagY);
-            ctx.stroke();
-            ctx.fillStyle = activated ? "#22C55E" : "#F59E0B";
-            ctx.beginPath();
-            ctx.moveTo(flagX, flagY);
-            ctx.lineTo(flagX + 14, flagY + 5);
-            ctx.lineTo(flagX, flagY + 10);
-            ctx.fill();
-          }
-        }
-      }
-
-      // player
-      if (!p.dead) {
-        const px = p.x - cam;
-        const bob = Math.sin(t * 8) * (p.onGround ? 2 : 0);
-
-        // shadow
-        ctx.fillStyle = "rgba(0,0,0,0.3)";
-        ctx.beginPath();
-        ctx.ellipse(px + PLAYER_W / 2, p.y + PLAYER_H + 2, PLAYER_W * 0.4, 5, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // body
-        const pGrad = ctx.createLinearGradient(px, p.y + bob, px, p.y + PLAYER_H + bob);
-        pGrad.addColorStop(0, "#A78BFA");
-        pGrad.addColorStop(1, "#7C3AED");
-        ctx.fillStyle = pGrad;
-        roundRect(ctx, px, p.y + bob, PLAYER_W, PLAYER_H, 8);
-        ctx.fill();
-
-        // eyes
-        ctx.fillStyle = "#fff";
-        ctx.beginPath(); ctx.ellipse(px + 9, p.y + 12 + bob, 4.5, 5, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(px + 23, p.y + 12 + bob, 4.5, 5, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#1E1B4B";
-        const eyeDir = p.vx > 0 ? 1 : p.vx < 0 ? -1 : 0;
-        ctx.beginPath(); ctx.ellipse(px + 10 + eyeDir, p.y + 13 + bob, 2.5, 3, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(px + 24 + eyeDir, p.y + 13 + bob, 2.5, 3, 0, 0, Math.PI * 2); ctx.fill();
-
-        // smile
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(px + PLAYER_W / 2, p.y + 23 + bob, 6, 0.2, Math.PI - 0.2);
-        ctx.stroke();
-
-        // jump squish
-        if (!p.onGround) {
-          ctx.fillStyle = "rgba(124,58,237,0.3)";
+        // flag on checkpoint
+        if (isl.checkpoint) {
+          const base = project(isl.wx + isl.sw / 2, isl.wy + isl.sh, isl.wz + isl.sd / 2, camX, camZ, camY);
+          const top = { sx: base.sx - 3, sy: base.sy - 28 };
+          ctx.strokeStyle = activated ? "#22C55E" : "#F59E0B";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(base.sx, base.sy); ctx.lineTo(top.sx, top.sy); ctx.stroke();
+          ctx.fillStyle = activated ? "#22C55E" : "#F59E0B";
           ctx.beginPath();
-          ctx.ellipse(px + PLAYER_W / 2, p.y + PLAYER_H + bob + 2, 10, 3, 0, 0, Math.PI * 2);
+          ctx.moveTo(top.sx, top.sy);
+          ctx.lineTo(top.sx + 12, top.sy + 5);
+          ctx.lineTo(top.sx, top.sy + 10);
           ctx.fill();
         }
       }
 
-      // death flash
+      // Draw carpet under player if active
+      if (!p.dead && carpetRef.current) {
+        drawCarpet(ctx, p.wx, p.wy, p.wz, camX, camZ, camY, t);
+      }
+
+      // Draw player
+      if (!p.dead) {
+        drawSphere(ctx, p.wx + 0.2, p.wy + 0.55, p.wz + 0.2, "#A78BFA", camX, camZ, camY);
+      }
+
+      // Death flash
       if (p.dead) {
-        ctx.fillStyle = "rgba(239,68,68,0.15)";
-        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = "rgba(239,68,68,0.2)";
+        ctx.fillRect(0, 0, CW, CH);
+        ctx.fillStyle = "#F87171";
+        ctx.font = "bold 22px Nunito,sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("💀 Возрождение...", CW / 2, CH / 2);
+        ctx.textAlign = "left";
       }
 
       // HUD
-      ctx.fillStyle = "rgba(0,0,0,0.5)";
-      roundRect(ctx, 10, 10, 160, 38, 8);
-      ctx.fill();
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.beginPath(); ctx.roundRect(10, 10, 175, 55, 10); ctx.fill();
       ctx.fillStyle = "#F0F2FF";
-      ctx.font = "bold 13px Nunito, sans-serif";
-      ctx.fillText(`💀 Смерти: ${deaths}`, 20, 28);
-      ctx.fillText(`🚩 ЧП: ${p.lastCheckpoint}/3`, 20, 43);
+      ctx.font = "bold 13px Nunito,sans-serif";
+      ctx.fillText(`💀 Смерти: ${deaths}`, 20, 30);
+      ctx.fillText(`🚩 Чекпоинт: ${p.lastCP}`, 20, 50);
 
-      // controls hint
+      if (carpetRef.current) {
+        ctx.fillStyle = "rgba(220,38,38,0.6)";
+        ctx.beginPath(); ctx.roundRect(CW / 2 - 70, 10, 140, 26, 8); ctx.fill();
+        ctx.fillStyle = "#FCD34D";
+        ctx.font = "bold 12px Nunito,sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("🪄 РЕЖИМ ПОЛЁТА", CW / 2, 28);
+        ctx.textAlign = "left";
+      }
+
+      // Controls
       ctx.fillStyle = "rgba(0,0,0,0.4)";
-      roundRect(ctx, CANVAS_W - 180, 10, 170, 28, 8);
-      ctx.fill();
-      ctx.fillStyle = "#8B8FAD";
-      ctx.font = "11px Nunito, sans-serif";
-      ctx.fillText("← → / WASD + ПРОБЕЛ — прыжок", CANVAS_W - 175, 28);
+      ctx.beginPath(); ctx.roundRect(CW - 200, 10, 190, 42, 8); ctx.fill();
+      ctx.fillStyle = "#6B7280";
+      ctx.font = "10px Nunito,sans-serif";
+      ctx.fillText("WASD — движение   ПРОБЕЛ — прыжок", CW - 195, 26);
+      ctx.fillText("B — выйти   M — магазин", CW - 195, 42);
 
       frameRef.current = requestAnimationFrame(tick);
-      setAnimFrame(f => f + 1);
     };
 
+    // M key to open shop
+    const handleShopKey = (e: KeyboardEvent) => {
+      if (e.code === "KeyM") setShowShop(s => !s);
+    };
+    window.addEventListener("keydown", handleShopKey);
+
     frameRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frameRef.current);
-  }, [won, resetPlayer, deaths]);
+    return () => {
+      cancelAnimationFrame(frameRef.current);
+      window.removeEventListener("keydown", handleShopKey);
+    };
+  }, [won, reset, deaths]);
 
   return (
     <div className="islands-game-wrap">
       <div className="islands-header">
-        <button className="btn-back" onClick={onBack}>← Назад</button>
-        <span className="islands-title">🏝️ Небесные острова</span>
-        <button className="btn-restart" onClick={() => { resetPlayer(false); setWon(false); setDeaths(0); }}>
+        <button className="btn-back" onClick={onBack}>
+          <span className="btn-b-key">B</span> Выйти
+        </button>
+        <span className="islands-title">🏝️ Небесные острова 3D</span>
+        <button className="btn-shop-open" onClick={() => setShowShop(true)}>
+          🛒 Магазин
+        </button>
+        <button className="btn-restart" onClick={() => { reset(false); setWon(false); setDeaths(0); }}>
           🔄 Заново
         </button>
       </div>
 
-      <div className="canvas-wrap">
-        <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H} className="game-canvas" />
+      <div className="canvas-wrap" style={{ position: "relative" }}>
+        <canvas ref={canvasRef} width={CW} height={CH} className="game-canvas" />
+
+        {cpMsg && (
+          <div className="cp-toast">{cpMsg}</div>
+        )}
+
+        {/* IN-GAME SHOP */}
+        {showShop && (
+          <div className="ingame-shop-overlay">
+            <div className="ingame-shop">
+              <div className="ingame-shop-header">
+                <span>🛒 Внутриигровой магазин</span>
+                <button className="ingame-shop-close" onClick={() => setShowShop(false)}>✕</button>
+              </div>
+              <div className="ingame-shop-balance">
+                🪙 <strong>{bloxcoins.toLocaleString()} BloxCoin</strong>
+              </div>
+              <div className="ingame-shop-items">
+                {/* Carpet */}
+                <div className="shop-item">
+                  <div className="shop-item-icon">🪄</div>
+                  <div className="shop-item-info">
+                    <div className="shop-item-name">Ковёр-самолёт</div>
+                    <div className="shop-item-desc">Летай по уровню! ПРОБЕЛ — вверх, SHIFT — вниз. Чекпоинты всё равно работают.</div>
+                    <div className="shop-item-price">🪙 300 BloxCoin</div>
+                  </div>
+                  <div className="shop-item-btns">
+                    {carpetOwned ? (
+                      <button
+                        className={`btn-toggle-item ${carpetActive ? "active" : ""}`}
+                        onClick={() => { setCarpetActive(a => !a); }}
+                      >
+                        {carpetActive ? "✅ Активен" : "Включить"}
+                      </button>
+                    ) : (
+                      <button
+                        className="btn-buy-item"
+                        disabled={bloxcoins < 300}
+                        onClick={() => { onSpend(300); setCarpetOwned(true); }}
+                      >
+                        Купить
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Infinite world */}
+                <div className="shop-item">
+                  <div className="shop-item-icon">♾️</div>
+                  <div className="shop-item-info">
+                    <div className="shop-item-name">Бесконечный мир</div>
+                    <div className="shop-item-desc">Генерирует 200+ случайных островов бесконечно. Прыгай сколько хочешь!</div>
+                    <div className="shop-item-price">🪙 500 BloxCoin</div>
+                  </div>
+                  <div className="shop-item-btns">
+                    {infiniteOwned ? (
+                      <button className="btn-toggle-item active" onClick={() => {
+                        islandsRef.current = generateInfiniteIslands(Date.now());
+                        reset(false); setWon(false); setDeaths(0); setShowShop(false);
+                      }}>
+                        ♾️ Перегенерировать
+                      </button>
+                    ) : (
+                      <button
+                        className="btn-buy-item"
+                        disabled={bloxcoins < 500}
+                        onClick={() => {
+                          onSpend(500);
+                          setInfiniteOwned(true);
+                          islandsRef.current = generateInfiniteIslands(Date.now());
+                          reset(false); setWon(false); setDeaths(0); setShowShop(false);
+                        }}
+                      >
+                        Купить
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* WIN */}
         {won && (
           <div className="win-overlay">
             <div className="win-content">
               <div className="win-emoji">🏆</div>
-              <h2>Ты победил!</h2>
-              <p>Смерти: {deaths} · Чекпоинты: 3/3</p>
-              <button className="btn-primary" onClick={() => { resetPlayer(false); setWon(false); setDeaths(0); }}>
+              <h2>Ты долетел!</h2>
+              <p>Смерти: {deaths} · Чекпоинты: {activatedCPRef.current.size}/3</p>
+              <button className="btn-primary" onClick={() => { reset(false); setWon(false); setDeaths(0); }}>
                 Играть снова
               </button>
-              <button className="btn-guest" onClick={onBack} style={{ marginTop: 8 }}>
-                В меню
-              </button>
+              <button className="btn-guest" onClick={onBack} style={{ marginTop: 8 }}>В меню</button>
             </div>
           </div>
         )}
       </div>
 
       <div className="islands-hint">
-        <span>🟣 Фиолетовые острова</span>
-        <span>🟡 Чекпоинт (сохраняет позицию)</span>
-        <span>🟢 Чекпоинт активирован</span>
-        <span>🏁 Долети до последнего острова!</span>
+        <span>WASD — движение</span>
+        <span>ПРОБЕЛ — прыжок</span>
+        <span>🟡 Чекпоинт</span>
+        <span>M — магазин</span>
+        <span><b>B</b> — выйти</span>
       </div>
     </div>
   );
-}
-
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
 }
 
 // ===== MAIN COMPONENT =====
@@ -614,7 +853,11 @@ export default function Index() {
 
       {/* ===== ISLANDS GAME ===== */}
       {screen === "play-islands" && (
-        <IslandsGame onBack={() => { setScreen("game"); setActiveNav("game"); }} />
+        <IslandsGame
+          onBack={() => { setScreen("game"); setActiveNav("game"); }}
+          bloxcoins={user.bloxcoins}
+          onSpend={(amt) => setUser(u => ({ ...u, bloxcoins: Math.max(0, u.bloxcoins - amt) }))}
+        />
       )}
 
       {/* ===== MAIN APP ===== */}
