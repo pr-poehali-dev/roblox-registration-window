@@ -1316,6 +1316,264 @@ body {
 }
 
 /* ============================
+   ISLANDS GAME
+============================ */
+.islands-game-wrap {
+  width: 100vw;
+  height: 100vh;
+  background: #0d0820;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.islands-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 800px;
+}
+
+.islands-title {
+  flex: 1;
+  font-family: "Fredoka", sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.btn-back,
+.btn-restart {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  font-family: "Nunito", sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    opacity 0.2s,
+    transform 0.15s;
+}
+
+.btn-back {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.btn-restart {
+  background: rgba(124, 58, 237, 0.3);
+  color: #c4b5fd;
+  border: 1px solid rgba(124, 58, 237, 0.4);
+}
+
+.btn-back:hover,
+.btn-restart:hover {
+  opacity: 0.8;
+  transform: scale(0.97);
+}
+
+.canvas-wrap {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow:
+    0 0 60px rgba(124, 58, 237, 0.3),
+    0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.game-canvas {
+  display: block;
+}
+
+.win-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+}
+
+.win-content {
+  background: var(--bg-panel);
+  border: 1.5px solid rgba(124, 58, 237, 0.4);
+  border-radius: var(--radius-xl);
+  padding: 36px 48px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 0 40px rgba(124, 58, 237, 0.3);
+}
+
+.win-emoji {
+  font-size: 56px;
+}
+
+.win-content h2 {
+  font-family: "Fredoka", sans-serif;
+  font-size: 28px;
+  color: var(--text-primary);
+}
+
+.win-content p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.islands-hint {
+  display: flex;
+  gap: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ============================
+   FRIEND REQUESTS
+============================ */
+.requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.request-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(234, 179, 8, 0.06);
+  border: 1.5px solid rgba(234, 179, 8, 0.2);
+  border-radius: var(--radius-lg);
+}
+
+.req-avatar {
+  font-size: 26px;
+}
+
+.req-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.req-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.req-sent-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 0 10px;
+}
+
+.req-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-accept {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 9px;
+  color: #86efac;
+  font-family: "Nunito", sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-accept:hover {
+  background: rgba(34, 197, 94, 0.28);
+}
+
+.btn-decline {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 9px;
+  color: #f87171;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-decline:hover {
+  background: rgba(239, 68, 68, 0.22);
+}
+
+.search-msg {
+  padding: 8px 14px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.search-msg-ok {
+  background: rgba(34, 197, 94, 0.1);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.search-msg-err {
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.search-result-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(124, 58, 237, 0.08);
+  border: 1.5px solid rgba(124, 58, 237, 0.25);
+  border-radius: var(--radius-lg);
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+
+.btn-remove {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(239, 68, 68, 0.07);
+  border: 1.5px solid rgba(239, 68, 68, 0.15);
+  border-radius: 9px;
+  color: #f87171;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-remove:hover {
+  background: rgba(239, 68, 68, 0.18);
+}
+
+/* ============================
    SCROLLBAR
 ============================ */
 ::-webkit-scrollbar {
