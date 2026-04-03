@@ -1321,19 +1321,25 @@ body {
 .islands-game-wrap {
   width: 100vw;
   height: 100vh;
-  background: #0d0820;
+  background: #060412;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
+  justify-content: flex-start;
+  overflow: hidden;
 }
 
 .islands-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 900px;
+  width: 100%;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .islands-title {
@@ -1585,15 +1591,15 @@ body {
 
 .canvas-wrap {
   position: relative;
-  border-radius: 14px;
+  flex: 1;
+  width: 100%;
   overflow: hidden;
-  box-shadow:
-    0 0 60px rgba(124, 58, 237, 0.3),
-    0 0 0 2px rgba(124, 58, 237, 0.2);
 }
 
 .game-canvas {
   display: block;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .win-overlay {
@@ -1636,12 +1642,19 @@ body {
 
 .islands-hint {
   display: flex;
-  gap: 20px;
-  font-size: 12px;
+  gap: 16px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: rgba(139, 143, 173, 0.7);
   flex-wrap: wrap;
   justify-content: center;
+  padding: 6px 16px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  width: 100%;
+  box-sizing: border-box;
+  border-top: 1px solid rgba(124, 58, 237, 0.15);
+  flex-shrink: 0;
 }
 
 /* ============================

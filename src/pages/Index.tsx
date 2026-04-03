@@ -28,15 +28,13 @@ interface FriendRequest {
 const CW = 900;
 const CH = 500;
 
-// 3D world: islands as boxes with x,z position and size
-// Player moves in X/Z plane, Y is height
 interface Island3D {
-  wx: number; // world x
-  wz: number; // world z
-  wy: number; // world y (height of top surface)
-  sw: number; // size x
-  sd: number; // size z
-  sh: number; // height of box
+  wx: number;
+  wz: number;
+  wy: number;
+  sw: number;
+  sd: number;
+  sh: number;
   checkpoint?: boolean;
   checkpointId?: number;
   color?: string;
@@ -49,32 +47,39 @@ interface Player3D {
   cpX: number; cpZ: number; cpY: number;
   lastCP: number;
   dead: boolean;
-  facing: number; // angle in radians
+  facing: number;
   carpetOwned: boolean;
   carpetActive: boolean;
   infiniteOwned: boolean;
 }
 
+interface Particle {
+  x: number; y: number; z: number;
+  vx: number; vy: number; vz: number;
+  life: number;
+  maxLife: number;
+}
+
 const BASE_ISLANDS: Island3D[] = [
-  { wx: 0,    wz: 0,    wy: 0,  sw: 5, sd: 5, sh: 1.5, color: "#6D28D9" },
-  { wx: 7,    wz: 1,    wy: 0,  sw: 3, sd: 3, sh: 1.5, checkpoint: true, checkpointId: 1, color: "#F59E0B" },
-  { wx: 13,   wz: -1,   wy: 1,  sw: 3, sd: 3, sh: 1.5, color: "#7C3AED" },
-  { wx: 19,   wz: 2,    wy: 2,  sw: 2.5, sd: 2.5, sh: 1.5, color: "#5B21B6" },
-  { wx: 25,   wz: 0,    wy: 1.5, sw: 3, sd: 3, sh: 1.5, checkpoint: true, checkpointId: 2, color: "#F59E0B" },
-  { wx: 31,   wz: -2,   wy: 3,  sw: 2.5, sd: 2.5, sh: 1.5, color: "#6D28D9" },
-  { wx: 37,   wz: 1,    wy: 2.5, sw: 2, sd: 2, sh: 1.5, color: "#4C1D95" },
-  { wx: 43,   wz: -1,   wy: 4,  sw: 3, sd: 3, sh: 1.5, checkpoint: true, checkpointId: 3, color: "#F59E0B" },
-  { wx: 50,   wz: 2,    wy: 3,  sw: 2, sd: 2, sh: 1.5, color: "#7C3AED" },
-  { wx: 57,   wz: 0,    wy: 5,  sw: 4, sd: 4, sh: 2, color: "#0891B2" },
+  { wx: 0,   wz: 0,  wy: 0,   sw: 5,   sd: 5,   sh: 1.5, color: "#6D28D9" },
+  { wx: 7,   wz: 1,  wy: 0,   sw: 3,   sd: 3,   sh: 1.5, checkpoint: true, checkpointId: 1, color: "#F59E0B" },
+  { wx: 13,  wz: -1, wy: 1,   sw: 3,   sd: 3,   sh: 1.5, color: "#7C3AED" },
+  { wx: 19,  wz: 2,  wy: 2,   sw: 2.5, sd: 2.5, sh: 1.5, color: "#5B21B6" },
+  { wx: 25,  wz: 0,  wy: 1.5, sw: 3,   sd: 3,   sh: 1.5, checkpoint: true, checkpointId: 2, color: "#F59E0B" },
+  { wx: 31,  wz: -2, wy: 3,   sw: 2.5, sd: 2.5, sh: 1.5, color: "#6D28D9" },
+  { wx: 37,  wz: 1,  wy: 2.5, sw: 2,   sd: 2,   sh: 1.5, color: "#4C1D95" },
+  { wx: 43,  wz: -1, wy: 4,   sw: 3,   sd: 3,   sh: 1.5, checkpoint: true, checkpointId: 3, color: "#F59E0B" },
+  { wx: 50,  wz: 2,  wy: 3,   sw: 2,   sd: 2,   sh: 1.5, color: "#7C3AED" },
+  { wx: 57,  wz: 0,  wy: 5,   sw: 4,   sd: 4,   sh: 2,   color: "#0891B2" },
 ];
 
 function generateInfiniteIslands(seed: number): Island3D[] {
   const islands: Island3D[] = [...BASE_ISLANDS];
   let lx = 57; let lz = 0; let ly = 5;
   for (let i = 0; i < 200; i++) {
-    const r = Math.sin(seed + i * 17.3) * 0.5 + 0.5;
-    const r2 = Math.sin(seed + i * 7.1) * 0.5 + 0.5;
-    const r3 = Math.sin(seed + i * 3.7) * 0.5 + 0.5;
+    const r  = Math.sin(seed + i * 17.3) * 0.5 + 0.5;
+    const r2 = Math.sin(seed + i * 7.1)  * 0.5 + 0.5;
+    const r3 = Math.sin(seed + i * 3.7)  * 0.5 + 0.5;
     lx += 5 + r * 4;
     lz += (r2 - 0.5) * 5;
     ly += (r3 - 0.45) * 1.5;
@@ -142,17 +147,16 @@ const AVATARS = ["🐸", "🦊", "🐺", "🦁", "🐯", "🦅", "🐲", "🤖",
 
 const MOCK_USER: User = { username: "ГостьИгрок", avatar: "👾", level: 12, bloxcoins: 1250 };
 
-// ===== 3D PROJECTION HELPERS =====
-// Isometric-style 3D projection
-const ISO_SCALE = 40; // pixels per world unit
-function project(wx: number, wy: number, wz: number, camX: number, camZ: number, camY: number) {
-  const rx = wx - camX;
-  const rz = wz - camZ;
-  // isometric projection with Y as up
-  const sx = CW / 2 + (rx - rz) * ISO_SCALE;
-  const sy = CH / 2 - wy * ISO_SCALE * 0.9 + (rx + rz) * ISO_SCALE * 0.5 - camY * 20;
-  return { sx, sy };
-}
+// ===== 3D PERSPECTIVE HELPERS =====
+
+const FOV_DEG = 70;
+const FOV_RAD = (FOV_DEG * Math.PI) / 180;
+const NEAR = 0.1;
+const LIGHT_DIR = (() => {
+  const lx = 0.3, ly = 1.0, lz = 0.5;
+  const len = Math.sqrt(lx * lx + ly * ly + lz * lz);
+  return { x: lx / len, y: ly / len, z: lz / len };
+})();
 
 function hexToRgb(hex: string) {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -161,118 +165,203 @@ function hexToRgb(hex: string) {
   return { r, g, b };
 }
 
-function darken(hex: string, amt: number) {
+function applyLighting(hex: string, normalX: number, normalY: number, normalZ: number, fogT: number): string {
   const { r, g, b } = hexToRgb(hex);
-  return `rgb(${Math.max(0, r - amt)},${Math.max(0, g - amt)},${Math.max(0, b - amt)})`;
+  const dot = Math.max(0, normalX * LIGHT_DIR.x + normalY * LIGHT_DIR.y + normalZ * LIGHT_DIR.z);
+  const brightness = 0.35 + 0.65 * dot;
+  // fog: lerp toward sky color (#060412)
+  const skyR = 6, skyG = 4, skyB = 18;
+  const fr = r * brightness * (1 - fogT) + skyR * fogT;
+  const fg = g * brightness * (1 - fogT) + skyG * fogT;
+  const fb = b * brightness * (1 - fogT) + skyB * fogT;
+  return `rgb(${Math.round(fr)},${Math.round(fg)},${Math.round(fb)})`;
 }
 
-function lighten(hex: string, amt: number) {
-  const { r, g, b } = hexToRgb(hex);
-  return `rgb(${Math.min(255, r + amt)},${Math.min(255, g + amt)},${Math.min(255, b + amt)})`;
+interface CamState {
+  px: number; py: number; pz: number; // position
+  yaw: number; // horizontal angle (radians)
 }
 
-// Draw isometric box
-function drawBox(ctx: CanvasRenderingContext2D, wx: number, wy: number, wz: number, sw: number, sd: number, sh: number,
-  color: string, camX: number, camZ: number, camY: number) {
-  const topNW = project(wx,       wy + sh, wz,       camX, camZ, camY);
-  const topNE = project(wx + sw,  wy + sh, wz,       camX, camZ, camY);
-  const topSE = project(wx + sw,  wy + sh, wz + sd,  camX, camZ, camY);
-  const topSW = project(wx,       wy + sh, wz + sd,  camX, camZ, camY);
-  const botNW = project(wx,       wy,      wz,       camX, camZ, camY);
-  const botNE = project(wx + sw,  wy,      wz,       camX, camZ, camY);
-  const botSE = project(wx + sw,  wy,      wz + sd,  camX, camZ, camY);
-  const botSW = project(wx,       wy,      wz + sd,  camX, camZ, camY);
+// Project a world point into screen coords given camera state.
+// Returns null if behind near plane.
+function perspProject(
+  wx: number, wy: number, wz: number,
+  cam: CamState
+): { sx: number; sy: number; depth: number } | null {
+  // Translate to camera space
+  const dx = wx - cam.px;
+  const dy = wy - cam.py;
+  const dz = wz - cam.pz;
+  // Rotate around Y axis by -yaw (camera faces +Z in local space)
+  const cosY = Math.cos(-cam.yaw);
+  const sinY = Math.sin(-cam.yaw);
+  const cx = dx * cosY - dz * sinY;
+  const cy = dy;
+  const cz = dx * sinY + dz * cosY;
 
-  // left face
-  ctx.beginPath();
-  ctx.moveTo(topNW.sx, topNW.sy);
-  ctx.lineTo(topSW.sx, topSW.sy);
-  ctx.lineTo(botSW.sx, botSW.sy);
-  ctx.lineTo(botNW.sx, botNW.sy);
-  ctx.closePath();
-  ctx.fillStyle = darken(color, 60);
-  ctx.fill();
+  if (cz < NEAR) return null; // behind camera
 
-  // right face
-  ctx.beginPath();
-  ctx.moveTo(topNE.sx, topNE.sy);
-  ctx.lineTo(topSE.sx, topSE.sy);
-  ctx.lineTo(botSE.sx, botSE.sy);
-  ctx.lineTo(botNE.sx, botNE.sy);
-  ctx.closePath();
-  ctx.fillStyle = darken(color, 30);
-  ctx.fill();
-
-  // top face
-  ctx.beginPath();
-  ctx.moveTo(topNW.sx, topNW.sy);
-  ctx.lineTo(topNE.sx, topNE.sy);
-  ctx.lineTo(topSE.sx, topSE.sy);
-  ctx.lineTo(topSW.sx, topSW.sy);
-  ctx.closePath();
-  ctx.fillStyle = lighten(color, 20);
-  ctx.fill();
-
-  // top outline
-  ctx.strokeStyle = lighten(color, 60);
-  ctx.lineWidth = 0.8;
-  ctx.stroke();
+  const fovScale = 1 / Math.tan(FOV_RAD / 2);
+  const sx = CW / 2 + (cx / cz) * fovScale * (CW / 2);
+  const sy = CH / 2 - (cy / cz) * fovScale * (CW / 2);
+  return { sx, sy, depth: cz };
 }
 
-// Draw isometric sphere (player)
-function drawSphere(ctx: CanvasRenderingContext2D, wx: number, wy: number, wz: number,
-  color: string, camX: number, camZ: number, camY: number) {
-  const pos = project(wx, wy, wz, camX, camZ, camY);
-  const r = ISO_SCALE * 0.5;
-
-  // shadow
-  const shadowPos = project(wx, 0, wz, camX, camZ, camY);
-  const shadowA = Math.max(0, 0.4 - (wy - 0) * 0.04);
-  ctx.fillStyle = `rgba(0,0,0,${shadowA})`;
+function fillQuad(
+  ctx: CanvasRenderingContext2D,
+  pts: ({ sx: number; sy: number } | null)[],
+  color: string
+) {
+  const valid = pts.filter(Boolean) as { sx: number; sy: number }[];
+  if (valid.length < 3) return;
   ctx.beginPath();
-  ctx.ellipse(shadowPos.sx, shadowPos.sy + r * 0.3, r * 1.2, r * 0.4, 0, 0, Math.PI * 2);
+  ctx.moveTo(valid[0].sx, valid[0].sy);
+  for (let i = 1; i < valid.length; i++) ctx.lineTo(valid[i].sx, valid[i].sy);
+  ctx.closePath();
+  ctx.fillStyle = color;
   ctx.fill();
-
-  // body gradient
-  const grad = ctx.createRadialGradient(pos.sx - r * 0.2, pos.sy - r * 0.2, r * 0.1, pos.sx, pos.sy, r);
-  grad.addColorStop(0, lighten(color, 60));
-  grad.addColorStop(0.5, color);
-  grad.addColorStop(1, darken(color, 50));
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.arc(pos.sx, pos.sy, r, 0, Math.PI * 2);
-  ctx.fill();
-
-  // sheen
-  ctx.fillStyle = "rgba(255,255,255,0.3)";
-  ctx.beginPath();
-  ctx.ellipse(pos.sx - r * 0.25, pos.sy - r * 0.3, r * 0.3, r * 0.2, -0.5, 0, Math.PI * 2);
-  ctx.fill();
-
-  // eyes
-  ctx.fillStyle = "#fff";
-  ctx.beginPath(); ctx.arc(pos.sx - r * 0.3, pos.sy - r * 0.15, r * 0.18, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(pos.sx + r * 0.15, pos.sy - r * 0.15, r * 0.18, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#1E1B4B";
-  ctx.beginPath(); ctx.arc(pos.sx - r * 0.26, pos.sy - r * 0.14, r * 0.1, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(pos.sx + r * 0.19, pos.sy - r * 0.14, r * 0.1, 0, Math.PI * 2); ctx.fill();
 }
 
-// Draw carpet (flying carpet effect)
-function drawCarpet(ctx: CanvasRenderingContext2D, wx: number, wy: number, wz: number,
-  camX: number, camZ: number, camY: number, t: number) {
-  const wave = Math.sin(t * 3) * 0.05;
-  const tl = project(wx - 0.5, wy - 0.1 + wave, wz - 0.4, camX, camZ, camY);
-  const tr = project(wx + 0.5, wy - 0.1 - wave, wz - 0.4, camX, camZ, camY);
-  const br = project(wx + 0.5, wy - 0.1 + wave, wz + 0.4, camX, camZ, camY);
-  const bl = project(wx - 0.5, wy - 0.1 - wave, wz + 0.4, camX, camZ, camY);
+function drawBox3D(
+  ctx: CanvasRenderingContext2D,
+  wx: number, wy: number, wz: number,
+  sw: number, sd: number, sh: number,
+  baseColor: string,
+  cam: CamState,
+  fogT: number
+) {
+  // 8 corners of the box
+  const corners = [
+    perspProject(wx,      wy,      wz,      cam), // 0 BNW
+    perspProject(wx + sw, wy,      wz,      cam), // 1 BNE
+    perspProject(wx + sw, wy,      wz + sd, cam), // 2 BSE
+    perspProject(wx,      wy,      wz + sd, cam), // 3 BSW
+    perspProject(wx,      wy + sh, wz,      cam), // 4 TNW
+    perspProject(wx + sw, wy + sh, wz,      cam), // 5 TNE
+    perspProject(wx + sw, wy + sh, wz + sd, cam), // 6 TSE
+    perspProject(wx,      wy + sh, wz + sd, cam), // 7 TSW
+  ];
+
+  // Box center Y for top-face visibility
+  const bcy = wy + sh / 2;
+
+  // Back-face culling: draw face only if camera is on the normal side
+  // dot(normal, camPos - faceCenter) > 0 means face is visible
+
+  // Top face (normal: 0,1,0) — visible if cam is above box center Y
+  if (cam.py > bcy) {
+    fillQuad(ctx, [corners[4], corners[5], corners[6], corners[7]], applyLighting(baseColor, 0, 1, 0, fogT));
+  }
+
+  // North face (normal: 0,0,-1) — visible if cam.pz < face center z
+  const faceNorthZ = wz;
+  if (cam.pz < faceNorthZ) {
+    fillQuad(ctx, [corners[4], corners[5], corners[1], corners[0]], applyLighting(baseColor, 0, 0, -1, fogT));
+  }
+
+  // South face (normal: 0,0,+1) — visible if cam.pz > face center z
+  const faceSouthZ = wz + sd;
+  if (cam.pz > faceSouthZ) {
+    fillQuad(ctx, [corners[7], corners[6], corners[2], corners[3]], applyLighting(baseColor, 0, 0, 1, fogT));
+  }
+
+  // West face (normal: -1,0,0) — visible if cam.px < face center x
+  const faceWestX = wx;
+  if (cam.px < faceWestX) {
+    fillQuad(ctx, [corners[4], corners[7], corners[3], corners[0]], applyLighting(baseColor, -1, 0, 0, fogT));
+  }
+
+  // East face (normal: +1,0,0) — visible if cam.px > face center x
+  const faceEastX = wx + sw;
+  if (cam.px > faceEastX) {
+    fillQuad(ctx, [corners[5], corners[6], corners[2], corners[1]], applyLighting(baseColor, 1, 0, 0, fogT));
+  }
+
+  // Top face border
+  const topValid = [corners[4], corners[5], corners[6], corners[7]].filter(Boolean) as { sx: number; sy: number }[];
+  if (topValid.length >= 3) {
+    ctx.beginPath();
+    ctx.moveTo(topValid[0].sx, topValid[0].sy);
+    for (let i = 1; i < topValid.length; i++) ctx.lineTo(topValid[i].sx, topValid[i].sy);
+    ctx.closePath();
+    const { r, g, b } = hexToRgb(baseColor);
+    ctx.strokeStyle = `rgba(${Math.min(255, r + 60)},${Math.min(255, g + 60)},${Math.min(255, b + 60)},0.5)`;
+    ctx.lineWidth = 0.6;
+    ctx.stroke();
+  }
+}
+
+function drawPlayerCube(
+  ctx: CanvasRenderingContext2D,
+  wx: number, wy: number, wz: number,
+  cam: CamState,
+  yaw: number // player facing direction
+) {
+  const s = 0.4; // half-size
+  const baseColor = "#A78BFA";
+  // Draw a small cube for the player (0.8x0.8x0.8)
+  drawBox3D(ctx, wx - s, wy, wz - s, s * 2, s * 2, s * 2, baseColor, cam, 0);
+
+  // Draw face (eyes + smile) on front face
+  // Front face is in direction of player yaw
+  const faceZ = wz - s - 0.01; // slightly in front
+  const eyeY = wy + s * 0.9;
+  const leftEyePt = perspProject(wx - s * 0.35, eyeY, faceZ, cam);
+  const rightEyePt = perspProject(wx + s * 0.35, eyeY, faceZ, cam);
+  if (leftEyePt && rightEyePt) {
+    const eyeR = Math.abs(rightEyePt.sx - leftEyePt.sx) * 0.12;
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(leftEyePt.sx, leftEyePt.sy, Math.max(1.5, eyeR), 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(rightEyePt.sx, rightEyePt.sy, Math.max(1.5, eyeR), 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#1E1B4B";
+    ctx.beginPath(); ctx.arc(leftEyePt.sx, leftEyePt.sy, Math.max(0.8, eyeR * 0.55), 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(rightEyePt.sx, rightEyePt.sy, Math.max(0.8, eyeR * 0.55), 0, Math.PI * 2); ctx.fill();
+    // smile
+    const smileCenter = perspProject(wx, wy + s * 0.5, faceZ, cam);
+    if (smileCenter) {
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = Math.max(0.8, eyeR * 0.4);
+      ctx.beginPath();
+      ctx.arc(smileCenter.sx, smileCenter.sy, eyeR * 1.1, 0.1, Math.PI - 0.1);
+      ctx.stroke();
+    }
+  }
+
+  // Shadow ellipse on the nearest island surface
+  const shadowPt = perspProject(wx, wy - 0.02, wz, cam);
+  if (shadowPt) {
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.ellipse(shadowPt.sx, shadowPt.sy, 14, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  void yaw;
+}
+
+function drawCarpet3D(
+  ctx: CanvasRenderingContext2D,
+  wx: number, wy: number, wz: number,
+  cam: CamState,
+  t: number
+) {
+  const wave = Math.sin(t * 3) * 0.06;
+  const pts = [
+    perspProject(wx - 0.55, wy - 0.1 + wave,  wz - 0.45, cam),
+    perspProject(wx + 0.55, wy - 0.1 - wave,  wz - 0.45, cam),
+    perspProject(wx + 0.55, wy - 0.1 + wave,  wz + 0.45, cam),
+    perspProject(wx - 0.55, wy - 0.1 - wave,  wz + 0.45, cam),
+  ];
+  const valid = pts.filter(Boolean) as { sx: number; sy: number }[];
+  if (valid.length < 3) return;
   ctx.beginPath();
-  ctx.moveTo(tl.sx, tl.sy);
-  ctx.lineTo(tr.sx, tr.sy);
-  ctx.lineTo(br.sx, br.sy);
-  ctx.lineTo(bl.sx, bl.sy);
+  ctx.moveTo(valid[0].sx, valid[0].sy);
+  for (let i = 1; i < valid.length; i++) ctx.lineTo(valid[i].sx, valid[i].sy);
   ctx.closePath();
-  const grad = ctx.createLinearGradient(tl.sx, tl.sy, br.sx, br.sy);
+  const p0 = valid[0], p2 = valid[2] ?? valid[1];
+  const grad = ctx.createLinearGradient(p0.sx, p0.sy, p2.sx, p2.sy);
   grad.addColorStop(0, "#DC2626");
   grad.addColorStop(0.3, "#F59E0B");
   grad.addColorStop(0.7, "#DC2626");
@@ -282,14 +371,36 @@ function drawCarpet(ctx: CanvasRenderingContext2D, wx: number, wy: number, wz: n
   ctx.strokeStyle = "#FCD34D";
   ctx.lineWidth = 1;
   ctx.stroke();
-  // pattern lines
-  ctx.strokeStyle = "rgba(252,211,77,0.4)";
-  ctx.lineWidth = 0.5;
+}
+
+function drawFlag3D(
+  ctx: CanvasRenderingContext2D,
+  wx: number, wy: number, wz: number,
+  cam: CamState,
+  activated: boolean
+) {
+  const base = perspProject(wx, wy, wz, cam);
+  const top  = perspProject(wx, wy + 1.4, wz, cam);
+  if (!base || !top) return;
+  const color = activated ? "#22C55E" : "#F59E0B";
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  const m1 = project(wx, wy - 0.1, wz - 0.4, camX, camZ, camY);
-  const m2 = project(wx, wy - 0.1, wz + 0.4, camX, camZ, camY);
-  ctx.moveTo(m1.sx, m1.sy); ctx.lineTo(m2.sx, m2.sy);
+  ctx.moveTo(base.sx, base.sy);
+  ctx.lineTo(top.sx, top.sy);
   ctx.stroke();
+  // flag triangle
+  const fl1 = perspProject(wx, wy + 1.4, wz, cam);
+  const fl2 = perspProject(wx + 0.5, wy + 1.15, wz, cam);
+  const fl3 = perspProject(wx, wy + 0.9, wz, cam);
+  if (fl1 && fl2 && fl3) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(fl1.sx, fl1.sy);
+    ctx.lineTo(fl2.sx, fl2.sy);
+    ctx.lineTo(fl3.sx, fl3.sy);
+    ctx.fill();
+  }
 }
 
 // ===== ISLANDS GAME COMPONENT (3D) =====
@@ -300,6 +411,7 @@ function IslandsGame({ onBack, bloxcoins, onSpend }: { onBack: () => void; bloxc
   const frameRef = useRef(0);
   const activatedCPRef = useRef<Set<number>>(new Set());
   const islandsRef = useRef<Island3D[]>(BASE_ISLANDS);
+  const particlesRef = useRef<Particle[]>([]);
   const [deaths, setDeaths] = useState(0);
   const [won, setWon] = useState(false);
   const [cpMsg, setCpMsg] = useState("");
@@ -310,6 +422,10 @@ function IslandsGame({ onBack, bloxcoins, onSpend }: { onBack: () => void; bloxc
   const carpetRef = useRef(false);
   const infiniteRef = useRef(false);
 
+  // Camera yaw controlled by mouse drag or Q/E keys
+  const camYawRef = useRef(0);
+  const dragRef = useRef<{ active: boolean; lastX: number }>({ active: false, lastX: 0 });
+
   const reset = useCallback((toCP = false) => {
     const p = playerRef.current;
     if (toCP) {
@@ -317,21 +433,51 @@ function IslandsGame({ onBack, bloxcoins, onSpend }: { onBack: () => void; bloxc
     } else {
       playerRef.current = { ...INIT_PLAYER3D };
       activatedCPRef.current = new Set();
+      camYawRef.current = 0;
+      particlesRef.current = [];
       if (infiniteRef.current) islandsRef.current = generateInfiniteIslands(Date.now());
       else islandsRef.current = BASE_ISLANDS;
     }
   }, []);
 
-  // Key B to exit
+  // Key B to exit, Q/E for camera rotation
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      keysRef.current[e.code] = e.type === "keydown";
-      if (e.type === "keydown" && e.code === "KeyB") onBack();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      keysRef.current[e.code] = true;
+      if (e.code === "KeyB") onBack();
     };
-    window.addEventListener("keydown", handleKey);
-    window.addEventListener("keyup", handleKey);
-    return () => { window.removeEventListener("keydown", handleKey); window.removeEventListener("keyup", handleKey); };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      keysRef.current[e.code] = false;
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
   }, [onBack]);
+
+  // Mouse drag for camera rotation
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onMouseDown = (e: MouseEvent) => { dragRef.current = { active: true, lastX: e.clientX }; };
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragRef.current.active) return;
+      const dx = e.clientX - dragRef.current.lastX;
+      camYawRef.current += dx * 0.005;
+      dragRef.current.lastX = e.clientX;
+    };
+    const onMouseUp = () => { dragRef.current.active = false; };
+    canvas.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      canvas.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, []);
 
   useEffect(() => { carpetRef.current = carpetActive; }, [carpetActive]);
   useEffect(() => { infiniteRef.current = infiniteOwned; }, [infiniteOwned]);
@@ -347,36 +493,69 @@ function IslandsGame({ onBack, bloxcoins, onSpend }: { onBack: () => void; bloxc
       const t = Date.now() / 1000;
       const SPEED = 0.1;
       const GRAVITY3D = 0.015;
-      const JUMP3D = carpetRef.current ? 0 : -0.22;
+      const JUMP_VY = -0.22;
+
+      // Camera yaw rotation via Q/E
+      if (keys["KeyQ"]) camYawRef.current -= 0.03;
+      if (keys["KeyE"]) camYawRef.current += 0.03;
 
       if (!p.dead && !won) {
-        // movement — WASD in isometric space
-        let moved = false;
-        if (keys["ArrowLeft"] || keys["KeyA"]) { p.wx -= SPEED; p.wz += SPEED; moved = true; }
-        if (keys["ArrowRight"] || keys["KeyD"]) { p.wx += SPEED; p.wz -= SPEED; moved = true; }
-        if (keys["ArrowUp"] || keys["KeyW"]) { p.wx += SPEED; p.wz += SPEED; moved = true; }
-        if (keys["ArrowDown"] || keys["KeyS"]) { p.wx -= SPEED; p.wz -= SPEED; moved = true; }
+        // WASD movement relative to camera yaw
+        const yaw = camYawRef.current;
+        const fwdX = Math.sin(yaw);
+        const fwdZ = Math.cos(yaw);
+        const rightX = Math.cos(yaw);
+        const rightZ = -Math.sin(yaw);
+
+        if (keys["KeyW"] || keys["ArrowUp"]) {
+          p.wx += fwdX * SPEED;
+          p.wz += fwdZ * SPEED;
+          p.facing = yaw;
+        }
+        if (keys["KeyS"] || keys["ArrowDown"]) {
+          p.wx -= fwdX * SPEED;
+          p.wz -= fwdZ * SPEED;
+        }
+        if (keys["KeyA"] || keys["ArrowLeft"]) {
+          p.wx -= rightX * SPEED;
+          p.wz -= rightZ * SPEED;
+        }
+        if (keys["KeyD"] || keys["ArrowRight"]) {
+          p.wx += rightX * SPEED;
+          p.wz += rightZ * SPEED;
+        }
 
         if (carpetRef.current) {
-          // carpet: fly mode — space to go up, shift to go down
           if (keys["Space"]) p.wy += SPEED * 0.8;
           if (keys["ShiftLeft"] || keys["ShiftRight"]) p.wy -= SPEED * 0.8;
           p.vy = 0;
           p.onGround = false;
         } else {
-          // normal gravity + jump
-          if (keys["Space"] && p.onGround) { p.vy = JUMP3D; p.onGround = false; }
+          if (keys["Space"] && p.onGround) {
+            p.vy = JUMP_VY;
+            p.onGround = false;
+            // spawn jump particles
+            for (let i = 0; i < 5; i++) {
+              const angle = (Math.PI * 2 * i) / 5;
+              particlesRef.current.push({
+                x: p.wx, y: p.wy, z: p.wz,
+                vx: Math.cos(angle) * 0.08,
+                vy: 0.05 + Math.random() * 0.05,
+                vz: Math.sin(angle) * 0.08,
+                life: 1, maxLife: 1,
+              });
+            }
+          }
           p.vy += GRAVITY3D;
           p.wy += p.vy;
           p.onGround = false;
 
-          // collision with islands
           for (const isl of islandsRef.current) {
             const topY = isl.wy + isl.sh;
             if (
-              p.wx >= isl.wx - 0.3 && p.wx <= isl.wx + isl.sw + 0.3 &&
-              p.wz >= isl.wz - 0.3 && p.wz <= isl.wz + isl.sd + 0.3 &&
-              p.wy <= topY + 0.15 && p.wy >= topY - 0.4 && p.vy >= 0
+              p.wx >= isl.wx - 0.35 && p.wx <= isl.wx + isl.sw + 0.35 &&
+              p.wz >= isl.wz - 0.35 && p.wz <= isl.wz + isl.sd + 0.35 &&
+              p.wy <= topY + 0.15 && p.wy >= topY - 0.45 && p.vy >= 0
             ) {
               p.wy = topY;
               p.vy = 0;
@@ -386,13 +565,12 @@ function IslandsGame({ onBack, bloxcoins, onSpend }: { onBack: () => void; bloxc
                 activatedCPRef.current.add(isl.checkpointId);
                 p.cpX = p.wx; p.cpZ = p.wz; p.cpY = p.wy;
                 p.lastCP = isl.checkpointId;
-                setCpMsg(`🚩 Чекпоинт ${isl.checkpointId} сохранён!`);
+                setCpMsg(`Чекпоинт ${isl.checkpointId} сохранён!`);
                 setTimeout(() => setCpMsg(""), 2000);
               }
             }
           }
 
-          // death
           if (p.wy < -8) {
             p.dead = true;
             setDeaths(d => d + 1);
@@ -400,129 +578,147 @@ function IslandsGame({ onBack, bloxcoins, onSpend }: { onBack: () => void; bloxc
           }
         }
 
-        // win: reach last island
         const last = islandsRef.current[islandsRef.current.length - 1];
-        if (!infiniteRef.current && p.wx > last.wx && p.wy >= last.wy) setWon(true);
+        if (!infiniteRef.current && p.wx > last.wx + last.sw && p.wy >= last.wy) setWon(true);
       }
 
-      // ===== CAMERA =====
-      const camX = p.wx - 6;
-      const camZ = p.wz + 4;
-      const camY = p.wy * 0.3;
+      // Update particles
+      particlesRef.current = particlesRef.current
+        .map(pt => ({ ...pt, x: pt.x + pt.vx, y: pt.y + pt.vy, z: pt.z + pt.vz, vy: pt.vy + 0.003, life: pt.life - 0.04 }))
+        .filter(pt => pt.life > 0);
 
-      // ===== DRAW =====
-      // Sky
+      // ===== CAMERA: third-person behind player =====
+      const yaw = camYawRef.current;
+      const camDist = 8;
+      const camHeight = 4;
+      const cam: CamState = {
+        px: p.wx - Math.sin(yaw) * camDist,
+        py: p.wy + camHeight,
+        pz: p.wz - Math.cos(yaw) * camDist,
+        yaw,
+      };
+      // Camera pitch: look slightly downward toward player
+      // We handle this via the perspective projection (player is below cam.py)
+
+      // ===== DRAW SKY =====
       const sky = ctx.createLinearGradient(0, 0, 0, CH);
-      sky.addColorStop(0, "#060412");
-      sky.addColorStop(0.4, "#120828");
-      sky.addColorStop(1, "#0a1535");
+      sky.addColorStop(0,   "#060412");
+      sky.addColorStop(0.5, "#1a1040");
+      sky.addColorStop(1,   "#0d2060");
       ctx.fillStyle = sky;
       ctx.fillRect(0, 0, CW, CH);
 
-      // Stars
-      for (let i = 0; i < 80; i++) {
-        const sx = (i * 137.5) % CW;
-        const sy = (i * 97.3) % (CH * 0.65);
-        const blink = Math.sin(t * 1.5 + i * 0.7) * 0.4 + 0.6;
-        ctx.fillStyle = `rgba(255,255,255,${blink * 0.7})`;
-        ctx.fillRect(sx, sy, i % 3 === 0 ? 2 : 1, i % 3 === 0 ? 2 : 1);
+      // Stars with twinkling
+      for (let i = 0; i < 120; i++) {
+        const sx = (i * 137.508) % CW;
+        const sy = (i * 97.327) % (CH * 0.7);
+        const blink = Math.sin(t * 1.5 + i * 0.73) * 0.4 + 0.6;
+        const size = i % 5 === 0 ? 2 : 1;
+        ctx.fillStyle = `rgba(255,255,255,${blink * 0.75})`;
+        ctx.fillRect(sx, sy, size, size);
       }
 
-      // Nebula clouds
+      // Nebula glows
       for (let i = 0; i < 3; i++) {
-        const nx = (i * 280 + 80) % CW;
-        const ny = 80 + i * 60;
-        const ng = ctx.createRadialGradient(nx, ny, 0, nx, ny, 120);
+        const nx = (i * 300 + 100) % CW;
+        const ny = 70 + i * 55;
+        const ng = ctx.createRadialGradient(nx, ny, 0, nx, ny, 110);
         ng.addColorStop(0, i === 0 ? "rgba(124,58,237,0.07)" : i === 1 ? "rgba(6,182,212,0.05)" : "rgba(236,72,153,0.04)");
         ng.addColorStop(1, "transparent");
         ctx.fillStyle = ng;
         ctx.fillRect(nx - 120, ny - 120, 240, 240);
       }
 
-      // Distant islands (fog effect)
-      for (let i = 0; i < 6; i++) {
-        const fogX = CW * 0.1 + i * CW * 0.15;
-        const fogY = CH * 0.35 + Math.sin(t * 0.3 + i) * 8;
-        ctx.fillStyle = `rgba(109,40,217,${0.03 + i * 0.01})`;
-        ctx.beginPath();
-        ctx.ellipse(fogX, fogY, 60 + i * 20, 15, 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      // ===== PAINTER'S SORT + DRAW ISLANDS =====
+      const FOG_START = 18;
+      const FOG_END   = 55;
 
-      // Sort islands by depth for proper painter's algorithm
       const sorted = [...islandsRef.current].sort((a, b) => {
-        const da = (a.wx - camX) + (a.wz - camZ);
-        const db = (b.wx - camX) + (b.wz - camZ);
-        return db - da;
+        const dax = a.wx + a.sw / 2 - cam.px;
+        const daz = a.wz + a.sd / 2 - cam.pz;
+        const dbx = b.wx + b.sw / 2 - cam.px;
+        const dbz = b.wz + b.sd / 2 - cam.pz;
+        const da = dax * dax + daz * daz;
+        const db = dbx * dbx + dbz * dbz;
+        return db - da; // far first
       });
 
       for (const isl of sorted) {
-        const activated = isl.checkpoint && isl.checkpointId !== undefined && activatedCPRef.current.has(isl.checkpointId);
-        const c = activated ? "#22C55E" : (isl.color || "#6D28D9");
-        drawBox(ctx, isl.wx, isl.wy, isl.wz, isl.sw, isl.sd, isl.sh, c, camX, camZ, camY);
+        const cx = isl.wx + isl.sw / 2;
+        const cz = isl.wz + isl.sd / 2;
+        const distToBlock = Math.sqrt((cx - cam.px) ** 2 + (cz - cam.pz) ** 2);
+        const fogT = Math.min(1, Math.max(0, (distToBlock - FOG_START) / (FOG_END - FOG_START)));
+        if (fogT >= 1) continue; // fully fogged out
 
-        // flag on checkpoint
+        const activated = isl.checkpoint && isl.checkpointId !== undefined && activatedCPRef.current.has(isl.checkpointId);
+        const blockColor = activated ? "#22C55E" : (isl.color ?? "#6D28D9");
+
+        drawBox3D(ctx, isl.wx, isl.wy, isl.wz, isl.sw, isl.sd, isl.sh, blockColor, cam, fogT);
+
         if (isl.checkpoint) {
-          const base = project(isl.wx + isl.sw / 2, isl.wy + isl.sh, isl.wz + isl.sd / 2, camX, camZ, camY);
-          const top = { sx: base.sx - 3, sy: base.sy - 28 };
-          ctx.strokeStyle = activated ? "#22C55E" : "#F59E0B";
-          ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.moveTo(base.sx, base.sy); ctx.lineTo(top.sx, top.sy); ctx.stroke();
-          ctx.fillStyle = activated ? "#22C55E" : "#F59E0B";
-          ctx.beginPath();
-          ctx.moveTo(top.sx, top.sy);
-          ctx.lineTo(top.sx + 12, top.sy + 5);
-          ctx.lineTo(top.sx, top.sy + 10);
-          ctx.fill();
+          drawFlag3D(ctx, isl.wx + isl.sw / 2, isl.wy + isl.sh, isl.wz + isl.sd / 2, cam, !!activated);
         }
       }
 
+      // Draw particles
+      for (const pt of particlesRef.current) {
+        const pp = perspProject(pt.x, pt.y, pt.z, cam);
+        if (pp) {
+          ctx.globalAlpha = pt.life;
+          ctx.fillStyle = "#A78BFA";
+          ctx.beginPath();
+          ctx.arc(pp.sx, pp.sy, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1;
+
       // Draw carpet under player if active
       if (!p.dead && carpetRef.current) {
-        drawCarpet(ctx, p.wx, p.wy, p.wz, camX, camZ, camY, t);
+        drawCarpet3D(ctx, p.wx, p.wy, p.wz, cam, t);
       }
 
-      // Draw player
+      // Draw player cube
       if (!p.dead) {
-        drawSphere(ctx, p.wx + 0.2, p.wy + 0.55, p.wz + 0.2, "#A78BFA", camX, camZ, camY);
+        drawPlayerCube(ctx, p.wx - 0.4, p.wy, p.wz - 0.4, cam, p.facing);
       }
 
       // Death flash
       if (p.dead) {
-        ctx.fillStyle = "rgba(239,68,68,0.2)";
+        ctx.fillStyle = "rgba(239,68,68,0.22)";
         ctx.fillRect(0, 0, CW, CH);
         ctx.fillStyle = "#F87171";
         ctx.font = "bold 22px Nunito,sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("💀 Возрождение...", CW / 2, CH / 2);
+        ctx.fillText("Возрождение...", CW / 2, CH / 2);
         ctx.textAlign = "left";
       }
 
       // HUD
       ctx.fillStyle = "rgba(0,0,0,0.55)";
-      ctx.beginPath(); ctx.roundRect(10, 10, 175, 55, 10); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(10, 10, 185, 55, 10); ctx.fill();
       ctx.fillStyle = "#F0F2FF";
       ctx.font = "bold 13px Nunito,sans-serif";
-      ctx.fillText(`💀 Смерти: ${deaths}`, 20, 30);
-      ctx.fillText(`🚩 Чекпоинт: ${p.lastCP}`, 20, 50);
+      ctx.fillText(`Смерти: ${deaths}`, 20, 30);
+      ctx.fillText(`Чекпоинт: ${p.lastCP}`, 20, 50);
 
       if (carpetRef.current) {
-        ctx.fillStyle = "rgba(220,38,38,0.6)";
-        ctx.beginPath(); ctx.roundRect(CW / 2 - 70, 10, 140, 26, 8); ctx.fill();
+        ctx.fillStyle = "rgba(220,38,38,0.65)";
+        ctx.beginPath(); ctx.roundRect(CW / 2 - 75, 10, 150, 26, 8); ctx.fill();
         ctx.fillStyle = "#FCD34D";
         ctx.font = "bold 12px Nunito,sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("🪄 РЕЖИМ ПОЛЁТА", CW / 2, 28);
+        ctx.fillText("РЕЖИМ ПОЛЁТА", CW / 2, 28);
         ctx.textAlign = "left";
       }
 
-      // Controls
-      ctx.fillStyle = "rgba(0,0,0,0.4)";
-      ctx.beginPath(); ctx.roundRect(CW - 200, 10, 190, 42, 8); ctx.fill();
+      // Mini controls HUD
+      ctx.fillStyle = "rgba(0,0,0,0.38)";
+      ctx.beginPath(); ctx.roundRect(CW - 215, 10, 205, 42, 8); ctx.fill();
       ctx.fillStyle = "#6B7280";
       ctx.font = "10px Nunito,sans-serif";
-      ctx.fillText("WASD — движение   ПРОБЕЛ — прыжок", CW - 195, 26);
-      ctx.fillText("B — выйти   M — магазин", CW - 195, 42);
+      ctx.fillText("WASD — движение  ПРОБЕЛ — прыжок", CW - 210, 26);
+      ctx.fillText("Q/E — камера  Мышь — поворот  M — магазин", CW - 210, 42);
 
       frameRef.current = requestAnimationFrame(tick);
     };
@@ -658,6 +854,7 @@ function IslandsGame({ onBack, bloxcoins, onSpend }: { onBack: () => void; bloxc
       <div className="islands-hint">
         <span>WASD — движение</span>
         <span>ПРОБЕЛ — прыжок</span>
+        <span>Q/E или мышь — камера</span>
         <span>🟡 Чекпоинт</span>
         <span>M — магазин</span>
         <span><b>B</b> — выйти</span>
